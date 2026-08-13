@@ -21,9 +21,7 @@ function drawEvents(n, done) {
     }}]);
 }
 
-
 const CHEER_DEFAULT = CHEER.slice();
-let CHEER_SAFE = ['馮海莎']; 
 
 function datePool() { 
     if(CHEER_SAFE.length >= CHEER.length) return CHEER_SAFE.slice(); 

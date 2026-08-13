@@ -506,8 +506,6 @@ function careerTimelineCard() {
     card('', '生涯時間軸', `<div style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin-top:4px;padding-bottom:4px"><div style="min-width:${minW}px"><div style="display:flex;gap:3px;margin-bottom:6px">${bands}</div><div style="margin:0 26px"><div style="position:relative;height:${62+38*maxR}px"><i style="position:absolute;left:0;right:0;top:8px;height:2px;background:var(--edge)"></i>${dots}</div></div></div></div>`);
 }
 // ==================== 選單與設定對話框 ====================
-const THEME_NAMES = {a: '深綠記分板', b: '電子看板', c: '報紙版面', d: '現代儀表板'};
-
 function updDispSum() { 
     const el = document.getElementById('disp-sum'); 
     if(!el) return;

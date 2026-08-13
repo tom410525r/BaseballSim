@@ -1,3 +1,9 @@
+// ==================== 全域共用工具函式 ====================
+const fmtMoney = w => { 
+    const y = Math.floor(w / 10000), m = Math.round(w % 10000); 
+    return (y ? y + '億' : '') + (m ? m.toLocaleString() + '萬' : (y ? '' : '0萬')); 
+};
+
 // ==================== 1. 核心常數與 RNG ====================
 let SEED = new URLSearchParams(location.search).get('seed') || Math.random().toString(36).slice(2,10);
 let _s = 0;

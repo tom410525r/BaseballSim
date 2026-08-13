@@ -4,38 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#081510">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="YaKyoLife - 棒球人生模擬器">
 <title>YaKyoLife - 棒球人生模擬器</title>
 <meta name="description" content="從高中三大賽到名人堂，一場種子化的台灣棒球員生涯模擬。選秀、旅外、國際賽、傷病、感情、引退——每一個決定都算數。">
-<meta property="og:type" content="website">
-<meta property="og:title" content="YaKyoLife - 棒球人生模擬器">
-<meta property="og:description" content="從高中三大賽到名人堂，一場種子化的台灣棒球員生涯模擬。選秀、旅外、國際賽、傷病、感情、引退——每一個決定都算數。">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="YaKyoLife - 棒球人生模擬器">
-<meta name="twitter:description" content="從高中三大賽到名人堂，一場種子化的台灣棒球員生涯模擬。選秀、旅外、國際賽、傷病、感情、引退——每一個決定都算數。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2214%22 fill=%22%23fff%22 stroke=%22%23d0d0d0%22/%3E%3Cpath d=%22M8 6 Q13 16 8 26 M24 6 Q19 16 24 26%22 stroke=%22%23c0392b%22 stroke-width=%221.5%22 fill=%22none%22/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAQAElEQVR4nOyde2xb133Hz6UkUiJF6mXq4Ui2nDhRbNXxqsBZEi8WFtiJAyewAxeGhzVDu27AgG7osAbb2s0ohnTL0AVB2zVA/lixYt4fRLAjdjOrgYouW5tdPESPx7tZefKiOcKeWY7dIiRLFx+333CPRMskj63HVuZfU72O9rAfJ35df/s7vnPNPOYX+tbWMILLhYgQhgcxBSCFzEFLIHIQUMgchhcxBSCFzEFLIHIQUMgchhcxBSCFzEFLIHIQUMgchhcxBSCFzEFLIHIQUMgchhcxBSCFzEFLIHIQUMgchhcxBSCFzEFLIHIQUMgchhcxBSCFzEFLIHIQUMgchhcxBSCFzEFLIHIQUMgchhcxBSClkyxBd1/lH411n05/0Wb+gGf+ML27/R9PYMmN5mEM37KAbn/RpF5R4ioNVlZVlAX9pqc/r9bjdhQUF+H48kYhOTY1HIuGxsaHRUP/g0ER0cvpvNI7xcVl4JZ/NoSe5FfhHIy3c39jYdO+a+1avaqy/p6GurrK8Loc3jjed8Oq3MZmhk9EZvb3fP559eu37p6mdXuvt1alswyiuvHWJln+7CfJnNzntiVV1Kzdt3NDS3PzQuiaftwQ/refvlp4ucfO75b/6J1hM72H7s8G72zLN6419O8I9N9E+/f6zO7b3e+v9/vJ+X2dO/ePXfvZ//kEAAAA//9G0dbEAAAABklEQVQDAD+kwvpk/9jrAAAAAElFTkSuQmCC">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@500;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div id="start">
   <div class="wrap">
     <div class="stitch"></div>
     <h1 id="logo-tap">YaKyoLife<br><em>棒球人生模擬器</em></h1>
-    <div id="ver-badge" style="position:fixed;top:6px;right:8px;font-size:10px;letter-spacing:1px;color:var(--dim);opacity:.55;font-family:monospace;z-index:50;pointer-events:none">v1.4.1</div>
+    <div id="ver-badge" style="position:fixed;top:6px;right:8px;font-size:10px;letter-spacing:1px;color:var(--dim);opacity:.55;font-family:monospace;z-index:50;pointer-events:none">v1.5.0</div>
     <p class="sub">高中三年養成 → 選秀・旅日・旅美 → 國際賽 → 衰退與引退。每一顆骰子都算數。</p>
     <div class="field"><label>球員姓名</label><input id="in-name" maxlength="10" placeholder="例如：林家正" value=""></div>
     <div class="field"><label>守位</label>
       <div class="seg" id="seg-pos">
         <button data-v="P" class="on">投手</button><button data-v="C">捕手</button>
-        <button data-v="IF">內野手</button><button data-v="OF">外野手</button>
+        <button data-v="IF">內野手</button><button data-v="OF">外野手</button><button data-v="TW">二刀流</button>
       </div></div>
-    <button class="btn main" style="margin-top:28px" id="btn-start">開始生涯 ▸ 高一春天</button>
+    <div style="display:flex;gap:8px;margin-top:28px">
+      <button class="btn main" id="btn-start" style="margin-top:0;flex:1">開始 ▸ 台灣高一</button>
+      <button class="btn" id="btn-start-jp" style="margin-top:0;flex:1;background:#2a3830;border-color:#3c6a4c;color:var(--text)">赴日留學 ▸ 日本高一</button>
+    </div>
     <details id="fld-display">
       <summary>顯示設定<span class="sum" id="disp-sum"></span></summary>
       <div id="disp-body">
@@ -56,7 +48,7 @@
     </details>
     <p class="seedline">世界種子
       <input id="seed-show" maxlength="24">
-      · <a href="#" id="seed-re">換一個</a><br>相同種子＋相同選擇＝相同人生（可直接輸入朋友的種子碼）</p>
+      · <a href="#" id="seed-re">換一個</a><br>相同種子＋相同選擇＝相同人生</p>
     <footer style="text-align:center;margin-top:22px;color:var(--dim);font-size:12px">Produced by <a href="https://www.threads.com/@mr.themost" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">最先生 Mr.TheMost</a></footer>
   </div>
 </div>
@@ -92,6 +84,11 @@
 </div>
 <div id="modal"><div id="modal-box"></div></div>
 <div id="alloc-full"><div id="af-inner"><div class="af-head"><span class="af-title" id="af-title"></span><button class="btn" id="af-close">收起</button></div><div id="af-body"></div></div></div>
-<script src="game.js"></script>
+
+<script src="js/data.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/mechanics.js"></script>
+<script src="js/events.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>

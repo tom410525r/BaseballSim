@@ -21,7 +21,7 @@ function drawEvents(n, done) {
     }}]);
 }
 
-let CHEER = ['林曉晴','陳若彤','張沛慈','王詠恩','許昀熙','蘇采蓁','周依潔','郭芷萱'];
+
 const CHEER_DEFAULT = CHEER.slice();
 let CHEER_SAFE = ['馮海莎']; 
 

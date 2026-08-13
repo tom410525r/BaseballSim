@@ -505,3 +505,46 @@ function careerTimelineCard() {
     
     card('', '生涯時間軸', `<div style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin-top:4px;padding-bottom:4px"><div style="min-width:${minW}px"><div style="display:flex;gap:3px;margin-bottom:6px">${bands}</div><div style="margin:0 26px"><div style="position:relative;height:${62+38*maxR}px"><i style="position:absolute;left:0;right:0;top:8px;height:2px;background:var(--edge)"></i>${dots}</div></div></div></div>`);
 }
+// ==================== 選單與設定對話框 ====================
+const THEME_NAMES = {a: '深綠記分板', b: '電子看板', c: '報紙版面', d: '現代儀表板'};
+
+function updDispSum() { 
+    const el = document.getElementById('disp-sum'); 
+    if(!el) return;
+    const parts = [THEME_NAMES[document.body.dataset.theme || 'a'], document.body.classList.contains('big-text') ? '大字' : '標準'];
+    const ui = document.getElementById('fld-ui'); 
+    if(ui && getComputedStyle(ui).display !== 'none') parts.push(document.body.classList.contains('mobile-ui') ? '手機版' : '電腦版');
+    el.textContent = '\u3000' + parts.join(' · '); 
+}
+
+function menuModal() {
+    const wide = matchMedia('(min-width:921px)').matches; 
+    const mob = document.body.classList.contains('mobile-ui'); 
+    const big = document.body.classList.contains('big-text');
+    modalOpen(`<h3>選單</h3><button class="btn" id="md-theme" style="text-align:center">切換佈景主題</button><button class="btn" id="md-big" style="text-align:center">${big ? '切回標準字級' : '改用大字級'}</button>${wide ? `<button class="btn" id="md-ui" style="text-align:center">${mob ? '切回電腦版介面' : '改用手機版介面'}</button>` : ''}<button class="btn warn" id="md-restart0" style="text-align:center">重新開始</button><button class="btn" id="md-close" style="text-align:center;margin-top:14px">關閉</button>`);
+    $('md-theme').onclick = themeModal; 
+    $('md-big').onclick = () => { applyBigText(!big); menuModal(); };
+    const mu = $('md-ui'); 
+    if(mu) mu.onclick = () => { applyMobileUI(!mob); menuModal(); };
+    $('md-restart0').onclick = restartModal; 
+    $('md-close').onclick = modalClose;
+}
+
+function restartModal() {
+    modalOpen(`<h3>重新開始</h3><p>確定要放棄這段人生，從頭開始嗎？</p><button class="btn warn" id="md-restart" style="text-align:center">放棄這段人生，重新開始</button><button class="btn" id="md-cancel" style="text-align:center">繼續目前的生涯</button>`);
+    $('md-restart').onclick = () => { _allowLeave = true; location.href = location.pathname; }; 
+    $('md-cancel').onclick = menuModal;
+}
+
+let _allowLeave = false;
+window.addEventListener('beforeunload', function(ev) { 
+    if(!S || S.done || _allowLeave) return; 
+    ev.preventDefault(); ev.returnValue = ''; 
+});
+
+function themeModal() {
+    const cur = document.body.dataset.theme || 'a';
+    modalOpen('<h3>佈景主題</h3>' + ['a','b','c','d'].map(t => `<button class="btn${t === cur ? ' main' : ''}" data-mt="${t}" style="text-align:center">${THEME_NAMES[t]}${t === cur ? ' ✓' : ''}</button>`).join('') + `<button class="btn" id="md-back" style="text-align:center;margin-top:14px">返回選單</button>`);
+    $('modal-box').querySelectorAll('[data-mt]').forEach(b => b.onclick = () => { applyTheme(b.dataset.mt); themeModal(); });
+    $('md-back').onclick = menuModal;
+}

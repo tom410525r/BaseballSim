@@ -20,7 +20,38 @@ function startYear() {
     tlPush(); 
     nextStep(); 
 }
-
+function allocDone(touched, isDice) {
+    const keys = Object.keys(touched);
+    if(isDice && S.stage !== 'HS' && keys.length) {
+        const tot = Object.values(touched).reduce((a,b) => a + b, 0);
+        let mk = keys[0]; keys.forEach(k => { if(touched[k] > touched[mk]) mk = k; });
+        const focused = (touched[mk] / tot >= 0.75) ? mk : null;
+        if(focused && focused === S.samePickKey) S.samePick++; 
+        else if(focused) { S.samePickKey = focused; S.samePick = 1; } 
+        else { S.samePickKey = null; S.samePick = 0; }
+        
+        if(S.samePick >= 3 && !S.traits.combo) { 
+            S.traits.combo = true; S.samePickBonus = true; S.comboKey = S.samePickKey;
+            traitCard('combo', '大巧不工', `連續三年，你把所有汗水都澆在同一個工具上——<b class="hl">季初系統會自動擲 1 顆骰，永遠加在你專精的「${ABL[S.comboKey]}」上</b>。`); 
+        }
+    }
+    
+    const gain = Object.values(touched).reduce((a,b) => a + b, 0);
+    if(!S.traits.late && !S.traits.genius && ovr() < 47 && S.age >= 25 && S.age < 32 && isDice && gain >= 16) {
+        S.traits.late = true; 
+        const exDef = S.pos === 'C' ? ['rng','fld','arm','cat'] : [];
+        const cands = POS_AB[S.pos].filter(k => S.ab[k] < 70 && !exDef.includes(k));
+        for(let i = cands.length - 1; i > 0; i--) { const j = Math.floor(R()*(i+1)); const t = cands[i]; cands[i] = cands[j]; cands[j] = t; }
+        const boost = cands.slice(0,2), bl = [];
+        boost.forEach(k => { 
+            S.pot[k] = Math.min(80, (S.pot[k] || 62) + 10); 
+            S.ab[k] = clamp(S.ab[k] + 5, 1, 80); 
+            bl.push(`${ABL[k]} <b class="up">+5</b>（潛力上限 +10 → ${S.pot[k]}）`); 
+        });
+        card('gold', '隱藏素質解鎖：大器晚成', `別人都以為你到頂了，你卻在這一年脫胎換骨——從今以後，每一顆訓練骰<b class="hl">永久固定 3 點以上</b>。` + (bl.length ? `潛能重新被評估：${bl.join('、')}。` : ''));
+        board(1); 
+    }
+}
 function phasePre() {
     board(0); S.tmpInj = 0; S.seasonFactor = 1; S.skipMid = false; S.prevD = S.lastD || 0; S.lastD = 0;
     if(S.age >= 48) { buyoutRemaining(1); endGame('身體已到極限，'+S.year+' 年春訓後宣布引退。'); return; }

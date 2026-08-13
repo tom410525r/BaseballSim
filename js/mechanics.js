@@ -208,6 +208,57 @@ function fmtIP(ip) {
 
 function roleN(r) { return {SP:'先發', MR:'中繼', CL:'終結者'}[r] || '—'; }
 function isSP() { return S.role === 'SP'; }
+// ==================== 守位審查與評估 ====================
+function dposReview(cont) {
+    if(S.stage !== 'PRO' || !(S.lv === 'CPBL1' || S.lv === 'NPB1' || S.lv === 'MLB')) { cont(); return; }
+    if(S.pos === 'C') {
+        if(!S.dpos) S.dpos = 'C';
+        const cOk = () => { const bar = dpBar(), a = S.ab; return a.fld >= bar - 6 && a.cat >= bar - 4 && a.arm >= bar - 2; };
+        if(S.dpos === 'C') {
+            if(cOk()) { cont(); return; }
+            const opts = [];
+            if(dpQual('1B')) opts.push({t:'移防 一壘手', main:true, s:'薪資係數 ×1.00', f:()=>{S.dpos = '1B'; card('info','守位調整','捕手裝備收進置物櫃——新球季改守<b class="hl">一壘</b>。'); cont();}});
+            opts.push({t:'轉任 指定打擊', main:!opts.length, s:'薪資係數 ×0.92', f:()=>{S.dpos = 'DH'; card('info','守位調整','阻殺率成了聯盟笑話，球團決定讓你專心打擊——<b class="hl">DH</b>。'); cont();}});
+            choose(`守位會議：教練團已經不敢讓你蹲捕（${LV[S.lv].n}標準）`, opts); return;
+        }
+        if(cOk()) {
+            choose('守位會議：牛棚捕手回報你的接捕又行了', [
+                {t:'重披捕手裝備', main:true, s:'薪資係數 ×1.12', f:()=>{S.dpos = 'C'; card('good','守位調整','面罩戴回來——新球季重新登錄為<b class="hl">捕手</b>。'); cont();}},
+                {t:'維持現狀', f:()=>cont()}
+            ]); return; 
+        }
+        if(S.dpos === '1B' && !dpQual('1B')) { S.dpos = 'DH'; card('info','守位調整','連一壘都站不住了，新球季登錄為<b class="hl">指定打擊</b>。'); }
+        cont(); return; 
+    }
+    if(S.pos === 'P' || S.pos === 'TW') {
+        const nr = pitcherRole(), old = S.role;
+        if((old === 'MR' || old === 'CL') && nr === 'SP') {
+            choose('球團徵詢：你的體力已達先發水準，要轉任先發嗎？', [
+                {t:'轉任先發，扛起輪值', main:true, f:()=>{ S.role = 'SP'; card('info','定位調整',`你點頭接下先發任務。新球季起，你是輪值的一員——<b class="hl">先發</b>。`); cont(); }},
+                {t:'留在牛棚，守住我的位置', s:'維持'+roleN(old)+'定位', f:()=>{ S.role = old; card('info','留守牛棚',`你婉拒了教練團的提議。`); cont(); }}
+            ]);
+            return;
+        }
+        S.role = nr;
+        if(old && old !== nr) { card('info','定位調整',`球團季末評估你的體力狀況，新球季將你的角色調整為 <b class="hl">${roleN(nr)}</b>。`); }
+        else if(!old) { card('info','投手定位',`教練團評估你的體力，將你登錄為 <b class="hl">${roleN(nr)}</b>。`); }
+        cont(); return;
+    }
+    const q = dpList();
+    if(!S.dpos) { S.dpos = q[0]; card('info','守位登錄',`教練團評估守備工具後，將你登錄為 <b class="hl">${DPN[S.dpos]}</b>。`); cont(); return; }
+    if(dpQual(S.dpos)) {
+        const best = q[0];
+        if(DP_RANK[best] < DP_RANK[S.dpos]) {
+            choose(`守位會議：教練團想把你推上更吃重的位置`, [
+                {t:`升防 ${DPN[best]}`, main:true, s:`薪資係數 ×${(DP_MULT[best]||1).toFixed(2)}`, f:()=>{S.dpos = best; card('good','守位調整',`守備數據說服了所有人——新球季改守 <b class="hl">${DPN[best]}</b>。`); cont();}},
+                {t:`留守 ${DPN[S.dpos]}`, f:()=>cont()}
+            ]); return; 
+        }
+        cont(); return; 
+    }
+    const opts = q.slice(0,2).map((p,i)=>({t:`移防 ${DPN[p]}`, main:i===0, s:p==='DH'?'守備已無處可站｜薪資係數 ×0.92':`薪資係數 ×${(DP_MULT[p]||1).toFixed(2)}`, f:()=>{ S.dpos = p; card('info','守位調整',`球團季末評估後，新球季改守 <b class="hl">${DPN[p]}</b>。`); cont(); }}));
+    choose(`守位會議：教練團認為你的守備已撐不住 ${DPN[S.dpos]}（${LV[S.lv].n}標準）`, opts);
+}
 
 // ==================== 賽季模擬引擎 (Season Engine) ====================
 function simSeason(lv) {

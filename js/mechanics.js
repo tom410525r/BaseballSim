@@ -521,3 +521,34 @@ function salaryFor(lv, d) {
     } 
     return 0;
 }
+// ==================== 業餘與成棒賽季模擬 ====================
+function amateurSeason() {
+    if(S.seasonFactor === 0) { 
+        card('bad', '', '整季只能在場邊看著隊友比賽。');
+        S.log.push({y: S.year, age: S.age, tm: S.team || stageLabel(), line: '傷缺全季', inj: true}); 
+        nextStep(); return; 
+    }
+    const cups = S.stage === 'HS' ? HS_CUPS : S.stage === 'U' ? U_CUPS : ['成棒甲組春季聯賽', '成棒甲組秋季聯賽'];
+    const thr = S.stage === 'HS' ? [52, 46, 40, 34, 28] : [60, 54, 48, 42, 36];
+    let gain = 0, lines = [], plain = [];
+    const tB = S.stage === 'HS' ? ({1:6, 2:0, 3:-6})[S.hsTier || 2] : 0; 
+    
+    cups.forEach(c => { 
+        const pw = ovr() + tB + ri(-8, 8);
+        const i = pw >= thr[0] ? 0 : pw >= thr[1] ? 1 : pw >= thr[2] ? 2 : pw >= thr[3] ? 3 : pw >= thr[4] ? 4 : 5;
+        const rk = ['冠軍','亞軍','四強','八強','十六強','預賽出局'][i];
+        const pts = [7, 5, 4, 3, 2, 1][i] + Math.floor(ovr() / 22);
+        gain += pts; lines.push(`${c}：<b class="hl">${rk}</b>（+${pts} 點）`); plain.push(`${c}${rk}`);
+        
+        if(S.stage === 'U' && rk === '冠軍' && !S.traits.academy) { 
+            S.traits.academy = true;
+            card('gold', '隱藏屬性解鎖：學院派', '大學殿堂的科學化訓練與防護打下扎實基礎——<b class="hl">25 歲前受傷率 −5%、季初擲骰期望值提升</b>。'); 
+        }
+        if(i === 0) S.honors.push(`${S.year} ${c}冠軍`); 
+    });
+    
+    S.pool += gain;
+    S.log.push({y: S.year, age: S.age, tm: S.team || stageLabel(), line: plain.join('、'), inj: false});
+    card('', '年度大賽', lines.join('<br>') + `<div class="statline">獲得能力點 ${gain} 點，季末統一分配。能力越高，大賽收穫越多。</div>`);
+    maybeIntl(() => nextStep());
+}

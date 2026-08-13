@@ -5,7 +5,9 @@ function scrollBottom(){
   try{ requestAnimationFrame(function(){ window.scrollTo(0, document.body.scrollHeight); }); }
   catch(e){ try{ window.scrollTo(0, document.body.scrollHeight); }catch(_){} }
 }
-function logTarget(){ return _curYearBody || $('log'); }
+function logTarget(){ 
+  return _curYearBody || $('log'); 
+}
 
 function card(cls,title,html){ 
   const d=document.createElement('div'); d.className='card '+cls;

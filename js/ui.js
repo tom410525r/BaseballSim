@@ -17,7 +17,7 @@ function logTarget() {
 
 function card(cls, title, html) { 
     const d = document.createElement('div'); 
-    d.className = 'card ' + cls;
+    d.className = 'card ' + (cls || '');
     d.innerHTML = (title ? `<h4>${title}</h4>` : '') + html; 
     logTarget().appendChild(d);
     renderTraits();
@@ -409,6 +409,7 @@ function themeModal() {
     $('md-back').onclick = menuModal;
 }
 
+// ==================== 初始化 UI 綁定 ====================
 (function(){ 
     const t = document.getElementById('act-toggle');
     if(t) t.onclick = () => { 
@@ -446,6 +447,7 @@ function themeModal() {
     document.querySelectorAll('#seg-theme button').forEach(b => b.onclick = () => applyTheme(b.dataset.t));
     applyTheme(t);
     
+    // 時間軸點擊事件綁定
     ['tl-list','tl-strip'].forEach(id => { 
         const el = $(id);
         if(el) el.onclick = ev => { const n = ev.target.closest('[data-i]'); if(n) tlScrollTo(TL[+n.dataset.i]); }; 

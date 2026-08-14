@@ -1,4 +1,5 @@
 // ==================== 事件卡、感情與選秀合約系統 ====================
+
 function evOdds() {
     let base = (S.traits.genius || S.traits.late || S.traits.clutch) ? 70 : 50;
     if(S.traits.thief) base -= 10;
@@ -23,10 +24,13 @@ function drawEvents(n, done) {
 
 let CHEER_SAFE = ['馮海莎']; 
 function datePool() { 
-    if(CHEER_SAFE.length >= CHEER.length) return CHEER_SAFE.slice(); 
-    return CHEER_SAFE.concat(CHEER.slice(CHEER_SAFE.length)); 
+    if(typeof CHEER !== 'undefined') {
+        if(CHEER_SAFE.length >= CHEER.length) return CHEER_SAFE.slice(); 
+        return CHEER_SAFE.concat(CHEER.slice(CHEER_SAFE.length)); 
+    }
+    return CHEER_SAFE.slice();
 }
-function affairPool() { return CHEER.slice(); }
+function affairPool() { return typeof CHEER !== 'undefined' ? CHEER.slice() : CHEER_SAFE.slice(); }
 
 function loveEvent(next) {
     const L = S.love;
@@ -357,7 +361,7 @@ function demotionAudit(cont) {
 }
 
 function tradeCheck(cont) {
-    if(S.stage !== 'PRO' || !LV[S.lv].top || S.seasonFactor <= 0) { cont(); return; }
+    if(S.stage !== 'PRO' || !LV[S.lv] || !LV[S.lv].top || S.seasonFactor <= 0) { cont(); return; }
     const star = ovr() >= LV[S.lv].par + 4; 
     let p = 15 + (S.tradeHeat || 0);
     if(S.traits.cancer) p += 25; 
@@ -401,6 +405,7 @@ function doTradeExec() {
     S.teamYears = 0; S.champThisTeam = false; S.champTeam = null; 
     const list = S.org === 'CPBL' ? CPBL_TEAMS : S.org === 'NPB' ? NPB_TEAMS : MLB_TEAMS; 
     const nt = pick(list.filter(t => t !== S.orgTeam)); 
+    S.tradeFrom = S.orgTeam; 
     S.orgTeam = nt; tlNote(2, '轉隊 ' + nt); board(1); 
 }
 
@@ -441,15 +446,15 @@ function extensionOffer(o) {
 
 function outOfOrg(o) {
     const offers = [];
-    if(S.org !== 'NPB' && o >= 44) offers.push({t:'日職二軍（支配下）合約', f:()=>{buyoutRemaining(1); signTo('NPB','NPB2');}});
+    if(S.org !== 'NPB' && o >= 44) offers.push({t:'日職二軍（支配下）合約', f:()=>{buyoutRemaining(1); signTo('NPB','NPB2'); advance();}});
     if(S.org !== 'CPBL'){ 
-        if(o >= 41) offers.push({t:'中職一軍合約', f:()=>{buyoutRemaining(1); signTo('CPBL','CPBL1');}});
-        else if(o >= 30) offers.push({t:'中職二軍合約', f:()=>{buyoutRemaining(1); signTo('CPBL','CPBL2');}}); 
+        if(o >= 41) offers.push({t:'中職一軍合約', f:()=>{buyoutRemaining(1); signTo('CPBL','CPBL1'); advance();}});
+        else if(o >= 30) offers.push({t:'中職二軍合約', f:()=>{buyoutRemaining(1); signTo('CPBL','CPBL2'); advance();}}); 
     }
     if(!offers.length){ buyoutRemaining(1); daibaFarewell(()=>endGame('遭球團釋出且無人問津，'+S.year+' 年黯然引退。')); return; }
     card('bad', '戰力外通告', `未達留用門檻遭到釋出。所幸還有球隊捎來邀請——`);
     if(S.age >= 33){ offers.push({t:'就此引退', warn:true, f:()=>{buyoutRemaining(1); daibaFarewell(()=>endGame('收到戰力外通告後，宣告引退。'));}}); }
-    choose('新東家的邀請', offers.map(x=>({...x, f:()=>{x.f(); advance();}})));
+    choose('新東家的邀請', offers);
 }
 
 function runDraftJP(fromSchool, cb) {
@@ -488,7 +493,7 @@ function runDraft(fromSchool, cb) {
     const lv = (rd === 1 && o >= 50) ? 'CPBL1' : 'CPBL2'; 
     const team = pick(CPBL_TEAMS);
     
-    const accept = () => { S.stage = 'PRO'; S.team = ''; S.salary += bonus; S.svc = 0; S.faElig = false; signTo('CPBL', lv, team, ri(2,3), 1); card('gold', '中華職棒選秀會', `第 <b class="hl">${rd}</b> 輪獲 <b class="hl">${team}</b> 指名！`); tlNote(4, '選秀第'+rd+'輪'); board(0); cb(); };
+    const accept = () => { S.stage = 'PRO'; S.team = ''; S.salary += bonus; S.svc = 0; S.faElig = false; signTo('CPBL', lv, team, ri(2,3), 1); card('gold', '中華職棒選秀會', `第 <b class="hl">${rd}</b> 輪獲 <b class="hl">${team}</b> 指名！簽約金 ${fmtMoney(bonus)}。`); tlNote(4, '選秀第'+rd+'輪'); board(0); cb(); };
     
     if(rd >= 3 && S.age < 24) {
         choose(`中華職棒選秀會 · 第 ${rd} 輪獲 ${team} 指名`, [
@@ -515,8 +520,9 @@ function pickOfferUI(title, org, offers, after) {
 }
 
 function makeOffers(org, n, bonusBase, yrsLo, yrsHi, lv, exclude) {
-    const list = teamListOf(org).filter(t => t !== exclude);
-    const teams = []; const pool = list.slice();
+    const list = org === 'CPBL' ? CPBL_TEAMS : org === 'NPB' ? NPB_TEAMS : MLB_TEAMS;
+    const pool = list.filter(t => t !== exclude);
+    const teams = [];
     for(let i=0; i<n && pool.length; i++) teams.push(pool.splice(Math.floor(R() * pool.length), 1)[0]);
     return teams.map(t => ({team: t, bonus: Math.round(bonusBase * (0.8 + R() * 0.5)), yrs: ri(yrsLo, yrsHi), lv, mult: 1}));
 }
@@ -537,7 +543,7 @@ function faFlow(o) {
         {t:'跳出合約，測試自由市場', warn:true, s:'尋求其他球隊報價', f:()=>faMarket(o, d)}
     ];
     if(S.org !== 'CPBL' && o >= LV.CPBL1.min) { 
-        faOpts.push({t:'返台加盟中職一軍', s:'落葉歸根，回到熟悉的主場', f:()=>{ signTo('CPBL','CPBL1'); card('good', '返鄉', `選擇回到 <b class="hl">${S.teamName()}</b>。`); advance(); }}); 
+        faOpts.push({t:'返台加盟中職一軍', s:'落葉歸根，回到熟悉的主場', f:()=>{ signTo('CPBL','CPBL1'); card('good', '返鄉', `選擇回到中職。`); advance(); }}); 
     }
     choose(`合約到期 · 取得自由球員（FA）資格（球隊奪冠率 ${teamChampRate(S.orgTeam)}%）`, faOpts);
 }

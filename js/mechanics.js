@@ -1,4 +1,5 @@
-// ==================== 數值運算、守備與賽季模擬引擎 ====================
+// ==================== 數值運算、守備、傷病與賽季模擬引擎 ====================
+
 function careerAllStars() { 
     let n = 0; 
     ['CPBL','NPB','MLB'].forEach(b => { if(S.stats[b]) n += (S.stats[b].AS || 0); }); 
@@ -128,6 +129,57 @@ function dpMult() {
     return (S.pos !== 'P' && S.pos !== 'TW' && S.dpos) ? (DP_MULT[S.dpos] || 1) : 1; 
 }
 
+function dposReview(cont) {
+    if(S.stage !== 'PRO' || !(S.lv === 'CPBL1' || S.lv === 'NPB1' || S.lv === 'MLB')) { cont(); return; }
+    if(S.pos === 'C') {
+        if(!S.dpos) S.dpos = 'C';
+        const cOk = () => { const bar = dpBar(), a = S.ab; return a.fld >= bar - 6 && a.cat >= bar - 4 && a.arm >= bar - 2; };
+        if(S.dpos === 'C') {
+            if(cOk()) { cont(); return; }
+            const opts = [];
+            if(dpQual('1B')) opts.push({t:'移防 一壘手', main:true, s:'薪資係數 ×1.00', f:()=>{S.dpos = '1B'; card('info','守位調整','捕手裝備收進置物櫃——新球季改守<b class="hl">一壘</b>。'); cont();}});
+            opts.push({t:'轉任 指定打擊', main:!opts.length, s:'薪資係數 ×0.92', f:()=>{S.dpos = 'DH'; card('info','守位調整','阻殺率成了聯盟笑話，球團決定讓你專心打擊——<b class="hl">DH</b>。'); cont();}});
+            choose(`守位會議：教練團已經不敢讓你蹲捕（${LV[S.lv].n}標準）`, opts); return;
+        }
+        if(cOk()) {
+            choose('守位會議：牛棚捕手回報你的接捕又行了', [
+                {t:'重披捕手裝備', main:true, s:'薪資係數 ×1.12', f:()=>{S.dpos = 'C'; card('good','守位調整','面罩戴回來——新球季重新登錄為<b class="hl">捕手</b>。'); cont();}},
+                {t:'維持現狀', f:()=>cont()}
+            ]); return; 
+        }
+        if(S.dpos === '1B' && !dpQual('1B')) { S.dpos = 'DH'; card('info','守位調整','連一壘都站不住了，新球季登錄為<b class="hl">指定打擊</b>。'); }
+        cont(); return; 
+    }
+    if(S.pos === 'P' || S.pos === 'TW') {
+        const nr = pitcherRole(), old = S.role;
+        if((old === 'MR' || old === 'CL') && nr === 'SP') {
+            choose('球團徵詢：你的體力已達先發水準，要轉任先發嗎？', [
+                {t:'轉任先發，扛起輪值', main:true, f:()=>{ S.role = 'SP'; card('info','定位調整',`你點頭接下先發任務。新球季起，你是輪值的一員——<b class="hl">先發</b>。`); cont(); }},
+                {t:'留在牛棚，守住我的位置', s:'維持'+roleN(old)+'定位', f:()=>{ S.role = old; card('info','留守牛棚',`你婉拒了教練團的提議。`); cont(); }}
+            ]);
+            return;
+        }
+        S.role = nr;
+        if(old && old !== nr) { card('info','定位調整',`球團季末評估你的體力狀況，新球季將你的角色調整為 <b class="hl">${roleN(nr)}</b>。`); }
+        else if(!old) { card('info','投手定位',`教練團評估你的體力，將你登錄為 <b class="hl">${roleN(nr)}</b>。`); }
+        cont(); return;
+    }
+    const q = dpList();
+    if(!S.dpos) { S.dpos = q[0]; card('info','守位登錄',`教練團評估守備工具後，將你登錄為 <b class="hl">${DPN[S.dpos]}</b>。`); cont(); return; }
+    if(dpQual(S.dpos)) {
+        const best = q[0];
+        if(DP_RANK[best] < DP_RANK[S.dpos]) {
+            choose(`守位會議：教練團想把你推上更吃重的位置`, [
+                {t:`升防 ${DPN[best]}`, main:true, s:`薪資係數 ×${(DP_MULT[best]||1).toFixed(2)}`, f:()=>{S.dpos = best; card('good','守位調整',`守備數據說服了所有人——新球季改守 <b class="hl">${DPN[best]}</b>。`); cont();}},
+                {t:`留守 ${DPN[S.dpos]}`, f:()=>cont()}
+            ]); return; 
+        }
+        cont(); return; 
+    }
+    const opts = q.slice(0,2).map((p,i)=>({t:`移防 ${DPN[p]}`, main:i===0, s:p==='DH'?'守備已無處可站｜薪資係數 ×0.92':`薪資係數 ×${(DP_MULT[p]||1).toFixed(2)}`, f:()=>{ S.dpos = p; card('info','守位調整',`球團季末評估後，新球季改守 <b class="hl">${DPN[p]}</b>。`); cont(); }}));
+    choose(`守位會議：教練團認為你的守備已撐不住 ${DPN[S.dpos]}（${LV[S.lv].n}標準）`, opts);
+}
+
 // ==================== 傷病與 TJ 手術 ====================
 function injuryProb() {
     let p = 15 + S.injNext;
@@ -189,6 +241,74 @@ function tjAccrue() {
 
 function tjCap() { return S.traits.rubber ? 100 : 50; }
 
+function tjTwoStrike() { 
+    S.ab.vel = clamp(Math.round(S.ab.vel/2), 1, 80); 
+    S.ab.brk = clamp(Math.round(S.ab.brk/2), 1, 80); 
+    card('bad', '兩度動刀的代價', '第二次進手術室——韌帶再也不是原廠的了。球速與變化球<b class="dn">直接砍半</b>。'); 
+}
+
+function tjBigInjury(cont) {
+    S.tjCount++; S.rehab = 1; S.tj = 0;
+    if(chance(5)) { 
+        S.ab.vel = 10; S.ab.brk = 10; S.pot.vel = 20; S.pot.brk = 20;
+        card('bad', '最壞的結果', `針扎下去的瞬間，肩膀傳來從未有過的撕裂感。醫生的臉色說明了一切——<b class="dn">肩膀報廢，球速與變化球歸零剩 10，潛力上限砍到 20</b>。你的投手生涯，大概到這裡了。`);
+        board(1); afterGamble('fail', cont); return; 
+    }
+    const gv = ri(3,10), gb = ri(3,10);
+    const netV = gv - 5; const netB = gb - 5;
+    S.ab.vel = clamp(S.ab.vel + netV, 1, 80);
+    S.ab.brk = clamp(S.ab.brk + netB, 1, 80);
+
+    if(S.tjCount >= 2) tjTwoStrike();
+    board(1);
+
+    const vStr = netV > 0 ? `<b class="up">+${netV}</b>` : netV < 0 ? `<b class="dn">${netV}</b>` : `<b>0</b>`;
+    const bStr = netB > 0 ? `<b class="up">+${netB}</b>` : netB < 0 ? `<b class="dn">${netB}</b>` : `<b>0</b>`;
+    card('bad', 'TJ 大傷', `硬撐的代價來了——韌帶當場斷裂。隔年<b class="dn">全年報銷</b>。經歷了漫長的手術與復健（斷裂 −5 加上手術回春），最終你的球速 ${vStr}、變化球 ${bStr}。就算滿血回歸，也真的只是勉強打平。`);
+    afterGamble('fail', cont);
+}
+
+function tjGamble(cont) {
+    if((S.pos !== 'P' && S.pos !== 'TW') || S.tj < tjCap()) { cont(); return; }
+    addAb('vel', -5); addAb('brk', -5); board(1);
+    card('bad', '手肘拉起警報', `累積的負荷讓韌帶發出哀鳴——球速、變化球各 <b class="dn">−5</b>。醫療團隊把兩個選項攤在你面前。`);
+    const succP = S.traits.rubber ? 85 : 55;
+    choose('TJ 抉擇：你的手肘撐到極限了', [
+        {t:'動 Tommy John 手術', main:true, s:'報銷一整年，回來球速/變化球回春（各 +3~+10）', f:()=>{
+            S.tj = 0; S.tjCount++; S.rehab = 1;
+            const gv = ri(3,10), gb = ri(3,10); addAb('vel', gv); addAb('brk', gb);
+            if(S.tjCount >= 2) { tjTwoStrike(); }
+            board(1);
+            card('gold', '手術成功', `手術很順利。漫長復健後，你的球威煥然一新——球速 <b class="up">+${gv}</b>、變化球 <b class="up">+${gb}</b>。（本季報銷）`);
+            afterGamble('surgery', cont); 
+        }},
+        {t:'打針硬撐這一季', warn:true, s:`成功率 ${succP}%｜失敗＝TJ 大傷（隔年報銷、能力再崩）`, f:()=>{
+            if(chance(succP)) { 
+                S.tj = Math.max(0, S.tj - 20); addAb('vel', 5); addAb('brk', 5); board(1);
+                card('good', '險過一關', `封閉針撐住了，你咬牙投完球季——量表 <b class="hl">−20</b>，球速、變化球各 <b class="up">+5</b>。但這是在跟時間借命。`);
+                afterGamble('inject', cont); 
+            } else { tjBigInjury(cont); } 
+        }}
+    ]);
+}
+
+function afterGamble(kind, cont) {
+    if(kind === 'inject') { 
+        S.tjSuccess++;
+        if(S.tjSuccess >= 2 && !S.traits.rubber) { 
+            S.traits.rubber = true;
+            card('gold', '隱藏屬性解鎖：橡膠手臂', '連續兩次靠打針硬撐挺過手肘危機、完全不進手術室——你的韌帶像橡膠一樣柔韌。<b class="hl">TJ 量表上限翻倍、打針成功率翻倍</b>。'); board(1); 
+        } 
+    } else if(kind === 'surgery') { 
+        S.tjSuccess = 0; 
+        if(S.traits.rubber) { 
+            removeTrait('rubber', '橡膠手臂');
+            card('bad', '橡膠不再', '終究還是進了手術室——那雙被稱為橡膠的手臂，也有極限。<b class="dn">橡膠手臂失效</b>。'); board(1); 
+        } 
+    } else { S.tjSuccess = 0; }
+    cont();
+}
+
 function pitcherRole() {
     if(S.ab.sta >= 52) return 'SP'; 
     const pd = (S.prevD !== undefined ? S.prevD : (S.lastD || 0));
@@ -208,59 +328,8 @@ function fmtIP(ip) {
 
 function roleN(r) { return {SP:'先發', MR:'中繼', CL:'終結者'}[r] || '—'; }
 function isSP() { return S.role === 'SP'; }
-// ==================== 守位審查與評估 ====================
-function dposReview(cont) {
-    if(S.stage !== 'PRO' || !(S.lv === 'CPBL1' || S.lv === 'NPB1' || S.lv === 'MLB')) { cont(); return; }
-    if(S.pos === 'C') {
-        if(!S.dpos) S.dpos = 'C';
-        const cOk = () => { const bar = dpBar(), a = S.ab; return a.fld >= bar - 6 && a.cat >= bar - 4 && a.arm >= bar - 2; };
-        if(S.dpos === 'C') {
-            if(cOk()) { cont(); return; }
-            const opts = [];
-            if(dpQual('1B')) opts.push({t:'移防 一壘手', main:true, s:'薪資係數 ×1.00', f:()=>{S.dpos = '1B'; card('info','守位調整','捕手裝備收進置物櫃——新球季改守<b class="hl">一壘</b>。'); cont();}});
-            opts.push({t:'轉任 指定打擊', main:!opts.length, s:'薪資係數 ×0.92', f:()=>{S.dpos = 'DH'; card('info','守位調整','阻殺率成了聯盟笑話，球團決定讓你專心打擊——<b class="hl">DH</b>。'); cont();}});
-            choose(`守位會議：教練團已經不敢讓你蹲捕（${LV[S.lv].n}標準）`, opts); return;
-        }
-        if(cOk()) {
-            choose('守位會議：牛棚捕手回報你的接捕又行了', [
-                {t:'重披捕手裝備', main:true, s:'薪資係數 ×1.12', f:()=>{S.dpos = 'C'; card('good','守位調整','面罩戴回來——新球季重新登錄為<b class="hl">捕手</b>。'); cont();}},
-                {t:'維持現狀', f:()=>cont()}
-            ]); return; 
-        }
-        if(S.dpos === '1B' && !dpQual('1B')) { S.dpos = 'DH'; card('info','守位調整','連一壘都站不住了，新球季登錄為<b class="hl">指定打擊</b>。'); }
-        cont(); return; 
-    }
-    if(S.pos === 'P' || S.pos === 'TW') {
-        const nr = pitcherRole(), old = S.role;
-        if((old === 'MR' || old === 'CL') && nr === 'SP') {
-            choose('球團徵詢：你的體力已達先發水準，要轉任先發嗎？', [
-                {t:'轉任先發，扛起輪值', main:true, f:()=>{ S.role = 'SP'; card('info','定位調整',`你點頭接下先發任務。新球季起，你是輪值的一員——<b class="hl">先發</b>。`); cont(); }},
-                {t:'留在牛棚，守住我的位置', s:'維持'+roleN(old)+'定位', f:()=>{ S.role = old; card('info','留守牛棚',`你婉拒了教練團的提議。`); cont(); }}
-            ]);
-            return;
-        }
-        S.role = nr;
-        if(old && old !== nr) { card('info','定位調整',`球團季末評估你的體力狀況，新球季將你的角色調整為 <b class="hl">${roleN(nr)}</b>。`); }
-        else if(!old) { card('info','投手定位',`教練團評估你的體力，將你登錄為 <b class="hl">${roleN(nr)}</b>。`); }
-        cont(); return;
-    }
-    const q = dpList();
-    if(!S.dpos) { S.dpos = q[0]; card('info','守位登錄',`教練團評估守備工具後，將你登錄為 <b class="hl">${DPN[S.dpos]}</b>。`); cont(); return; }
-    if(dpQual(S.dpos)) {
-        const best = q[0];
-        if(DP_RANK[best] < DP_RANK[S.dpos]) {
-            choose(`守位會議：教練團想把你推上更吃重的位置`, [
-                {t:`升防 ${DPN[best]}`, main:true, s:`薪資係數 ×${(DP_MULT[best]||1).toFixed(2)}`, f:()=>{S.dpos = best; card('good','守位調整',`守備數據說服了所有人——新球季改守 <b class="hl">${DPN[best]}</b>。`); cont();}},
-                {t:`留守 ${DPN[S.dpos]}`, f:()=>cont()}
-            ]); return; 
-        }
-        cont(); return; 
-    }
-    const opts = q.slice(0,2).map((p,i)=>({t:`移防 ${DPN[p]}`, main:i===0, s:p==='DH'?'守備已無處可站｜薪資係數 ×0.92':`薪資係數 ×${(DP_MULT[p]||1).toFixed(2)}`, f:()=>{ S.dpos = p; card('info','守位調整',`球團季末評估後，新球季改守 <b class="hl">${DPN[p]}</b>。`); cont(); }}));
-    choose(`守位會議：教練團認為你的守備已撐不住 ${DPN[S.dpos]}（${LV[S.lv].n}標準）`, opts);
-}
 
-// ==================== 賽季模擬引擎 (Season Engine) ====================
+// ==================== 賽季模擬引擎 ====================
 function simSeason(lv) {
     if (S.pos === 'TW') {
         S.pos = 'P'; S.role = 'SP'; 
@@ -521,7 +590,9 @@ function salaryFor(lv, d) {
     } 
     return 0;
 }
-// ==================== 業餘與成棒賽季模擬 ====================
+
+// ==================== 賽季推進 (包含獎項與國際賽) ====================
+
 function amateurSeason() {
     if(S.seasonFactor === 0) { 
         card('bad', '', '整季只能在場邊看著隊友比賽。');
@@ -551,4 +622,302 @@ function amateurSeason() {
     S.log.push({y: S.year, age: S.age, tm: S.team || stageLabel(), line: plain.join('、'), inj: false});
     card('', '年度大賽', lines.join('<br>') + `<div class="statline">獲得能力點 ${gain} 點，季末統一分配。能力越高，大賽收穫越多。</div>`);
     maybeIntl(() => nextStep());
+}
+
+function proSeason() {
+    const st = simSeason(S.lv); 
+    S.lastSt = st; S.lastD = st.d;
+    
+    const maxG = S.org === 'CPBL' ? 120 : S.org === 'NPB' ? 143 : 162;
+    st.G = Math.min(st.G, maxG);
+
+    if(S.pos === 'P') { 
+        st.G = Math.max(st.G, Math.ceil(st.IP/9)); 
+        st.SV = Math.min(st.SV || 0, st.G); 
+        st.HLD = Math.min(st.HLD || 0, st.G - (st.SV || 0)); 
+        if ((st.W + st.L) > st.G) {
+            const ratio = st.G / (st.W + st.L);
+            st.W = Math.floor(st.W * ratio);
+            st.L = Math.floor(st.L * ratio);
+        }
+    } else {
+        st.PA = Math.max(st.PA, st.G); 
+    }
+    
+    if(S.pendStat > 0 && S.seasonFactor > 0) {
+        const p = S.pendStat * S.seasonFactor;
+        if(S.pos === 'P') {
+            if(!isSP()) { const addG = Math.min(Math.max(0, 68 - st.G), Math.round(p * 1.2)); st.G += addG; st.IP = +(st.IP + addG * 1.05).toFixed(1); }
+            st.SO += Math.round(p * 8); st.IP = +(st.IP + p * 4).toFixed(1);
+            if(isSP()) st.W += Math.round(p * 0.4); else st.SV += Math.round(p * 0.6);
+            st.era = st.IP > 0 ? clamp(st.era - p * 0.05, 1.40, 9.90) : st.era; st.ER = Math.round(st.era * st.IP / 9);
+            if(!isSP()) { 
+                st.SV = Math.min(st.SV || 0, Math.floor(st.G * 0.85));
+                st.HLD = Math.min(st.HLD || 0, Math.max(0, st.G - st.SV));
+                const decCap = Math.max(0, st.G - st.SV - st.HLD);
+                if((st.W + st.L) > decCap) { st.W = Math.min(st.W, decCap); st.L = Math.max(0, decCap - st.W); }
+            } 
+        } else { 
+            const Lg = LV[S.lv];
+            const addG = Math.min(Math.max(0, (Lg.g || 120) - st.G), Math.round(p * 1.5));
+            const addPA = Math.round(addG * 4.25), addAB = Math.round(addPA * 0.9);
+            st.G += addG; st.PA += addPA; st.AB += addAB;
+            let addH = Math.round(addAB * 0.55) + Math.round(p * 1.5); 
+            addH = Math.max(0, Math.min(addH, st.AB - st.H));        
+            const addHR = Math.min(addH, Math.round(p * 1.2));
+            st.H += addH; st.HR += addHR; st.RBI += Math.round(addHR * 2.1 + (addH - addHR) * 0.3);
+            st.avg = st.AB ? st.H / st.AB : 0; 
+        }
+    }
+    S.pendStat = 0;
+    
+    if(S.pos === 'P' && S.seasonFactor > 0) { 
+        const em = {'全力投':1, '普通投':0, '養生球':-1}[S.effort] || 0;
+        if(em !== 0) { 
+            st.d += em; st.era = clamp(st.era - em * 0.25, 1.40, 9.90); st.ER = Math.round(st.era * st.IP / 9);
+            st.SO = Math.round(st.SO * (1 + em * 0.06)); 
+        } 
+    }
+    
+    if(S.traits.onetool && S.seasonFactor > 0) { 
+        const boost = 1.25; 
+        ['G','PA','AB'].forEach(k => { if(typeof st[k] === 'number') st[k] = Math.round(st[k] * boost); });
+        ['H','HR','RBI','SB','BB'].forEach(k => { if(typeof st[k] === 'number') st[k] = Math.round(st[k] * boost); });
+        st.avg = st.AB > 0 ? st.H / st.AB : 0; 
+    }
+    
+    const bucket = bucketOf(S.lv); 
+    accStat(bucket, st);
+    
+    if(S.seasonFactor === 0) { card('bad', '球季數據', '（傷缺，本季無出賽紀錄）'); }
+    else if(S.tradeFrom) { 
+        const r = 0.35 + R() * 0.3, p1 = portionOf(st, r), p2 = portionOf(st, 1 - r);
+        card('', '球季數據（季中轉隊）', `<span class="tag">${S.tradeFrom}</span><div class="statline">${statLine(p1)}</div>` + `<span class="tag">${S.teamName()}</span><div class="statline">${statLine(p2)}</div>` + `<span class="tag">合計</span><div class="statline">${statLine(st)}</div>`);
+    } else card('', '球季數據', `<span class="tag">${S.teamName()}${S.dpos ? '｜'+S.dpos : ''}</span><div class="statline">${statLine(st)}</div>`);
+    
+    if(st.form === -1) {
+        card('bad', '巨大的低潮', `身體狀況很好，但是成績一直打不出來，遇到了巨大的低潮。`);
+    } else if(st.form === 1) {
+        if(S.pos === 'P') card('gold', '生涯年', '縫線掠過指尖的感覺無與倫比，而你投出去的球像是有了生命。');
+        else card('gold', '生涯年', '投來的每顆球看起來都像籃球一樣大，你看得到縫線、球的轉動，每一顆擊中甜蜜點的球，都往全壘打牆奔去。');
+    }
+    
+    const isInj = S.seasonFactor <= 0.45; 
+    S.log.push({y: S.year, age: S.age, tm: S.tradeFrom ? `${S.tradeFrom}→${S.teamName()}` : S.teamName(), p: S.dpos || '', line: S.seasonFactor === 0 ? '傷缺全季' : statLine(st), inj: isInj, st: st});
+    S.tradeFrom = null;
+    
+    const healthy = S.seasonFactor >= 0.95 && (S.pos === 'P' ? (isSP() ? st.IP >= 120 : st.G >= 42) : st.G >= LV[S.lv].g * 0.8);
+    if(healthy) { 
+        S.ironStreak++;
+        if(S.ironStreak >= 5 && !S.traits.iron) { 
+            S.traits.iron = true;
+            card('gold', '隱藏素質解鎖：鐵人', '連續五年全勤級出賽！鋼鐵般的身體，未來每季受傷機率<b class="hl">不高於 10%</b>。'); 
+        } 
+    } else if(S.seasonFactor < 0.95) S.ironStreak = 0;
+    
+    if(S.pos !== 'P') { 
+        const tg = toolGap();
+        const projG = S.seasonFactor > 0 ? (st.G / S.seasonFactor) : 0;
+        const isRegular = projG >= LV[S.lv].g * 0.60;
+        if(!S.traits.onetool && !isRegular && tg.gap >= 22 && tg.val >= 58 && careerAllStars() < 4) { 
+            S.traits.onetool = true;
+            const wasBefore = S.removed.includes('只會這個');
+            S.removed = S.removed.filter(x => x !== '只會這個'); 
+            const role = tg.role;
+            S.toolRole = role;
+            if(wasBefore || S.age >= 33) traitCard('onetool', '只會這個', `歲月帶走了你的其他工具，只剩<b class="hl">${role}</b>那一項本領還在。教練把你當成板凳上的秘密武器。`, 'bad');
+            else traitCard('onetool', '只會這個', `你只有一項武器強得誇張，其餘全是破洞。你成了球隊的<b class="hl">${role}</b>。出賽數銳減，但那一項本領無人能及。`, 'bad'); 
+        } else if(S.traits.onetool && (tg.gap < 18 || isRegular)) { 
+            removeTrait('onetool', '只會這個'); S.toolRole = null;
+            card('good', '不再是工具人', '教練終於敢把你放進先發打線——你證明了自己不只是板凳上的一招鮮。<b class="hl">「只會這個」解除</b>。'); board(1); 
+        } 
+    }
+    
+    awards(bucket, st);
+    if(S.pos === 'P' && S.seasonFactor > 0) tjAccrue();
+    tjGamble(() => demotionAudit(() => tradeCheck(() => maybeIntl(() => nextStep()))));
+}
+
+function awards(bucket, st) {
+    if(!LV[S.lv].top || S.seasonFactor === 0) return;
+    const y = S.year, h = S.honors, lgN = {CPBL:'中職', NPB:'日職', MLB:'大聯盟'}[bucket];
+
+    const TH = {
+        CPBL: { g: 120, era: [3.20, 2.20], sv: [22, 35], hld: [18, 30], so: [130, 180], avg: [0.300, 0.360], hr: [20, 32], rbi: [75, 105], obp: [0.370, 0.430] },
+        NPB:  { g: 143, era: [3.20, 2.20], sv: [22, 35], hld: [18, 30], so: [155, 215], avg: [0.300, 0.360], hr: [24, 38], rbi: [90, 125], obp: [0.370, 0.430] },
+        MLB:  { g: 162, era: [3.20, 2.20], sv: [22, 35], hld: [18, 30], so: [175, 240], avg: [0.300, 0.360], hr: [27, 43], rbi: [100, 140], obp: [0.370, 0.430] }
+    };
+    const th = TH[bucket] || TH.CPBL;
+
+    { 
+        const d = st.d;
+        let asP = clamp(28 + d * 7, 3, 92);
+        if(bucket === 'CPBL' && S.orgTeam === '台中猛瑪') asP = clamp(asP + 30, 3, 97); 
+        if(chance(asP)) { 
+            S.stats[bucket].AS++;
+            h.push(`${y} ${lgN}明星賽` + ((bucket === 'CPBL' && S.orgTeam === '台中猛瑪' && d < 2) ? '（人氣入選）' : '')); 
+        } 
+    }
+
+    const rookieOK = bucket !== 'CPBL' || !(S.stats.NPB || S.stats.MLB || S.stats.MINOR);
+    if(S.stats[bucket].yr === 1 && rookieOK && st.d >= 4) {
+        const rkP = clamp(30 + (st.d - 4) * 15, 30, 95);
+        if(chance(rkP)) h.push(`${y} ${lgN}新人王`);
+    }
+
+    if(S.pos === 'P') {
+        const aw = '年度最佳投手';
+        if(isSP() && st.era <= th.era[0] && st.IP >= th.g) { 
+            const god = st.era <= th.era[1] && st.IP >= 150;
+            const p = god ? 100 : clamp(30 + Math.round((th.era[0] - st.era) * 35 + (st.IP - th.g) * 0.4), 30, 95);
+            if(chance(p)) h.push(`${y} ${aw}`);
+        }
+        if(S.role === 'CL' && st.SV >= th.sv[0]) {
+            const god = st.SV >= th.sv[1];
+            const p = god ? 100 : clamp(28 + (st.SV - th.sv[0]) * 5, 28, 95);
+            if(chance(p)) h.push(`${y} ${lgN}救援王`);
+        }
+        if(S.role === 'MR' && (st.HLD||0) >= th.hld[0]) {
+            const god = (st.HLD||0) >= th.hld[1];
+            const p = god ? 100 : clamp(28 + ((st.HLD||0) - th.hld[0]) * 4, 28, 95);
+            if(chance(p)) h.push(`${y} ${lgN}中繼王`);
+        }
+        if(st.SO >= th.so[0]) {
+            const god = st.SO >= th.so[1];
+            const p = god ? 100 : clamp(25 + Math.round((st.SO - th.so[0]) * 1.2), 25, 95);
+            if(chance(p)) h.push(`${y} ${lgN}三振王`);
+        }
+    } else {
+        if(st.PA >= 350 && st.avg >= th.avg[0]) {
+            const god = st.avg >= th.avg[1];
+            const p = god ? 100 : clamp(25 + Math.floor((st.avg - th.avg[0]) / 0.005) * 6, 25, 95);
+            if(chance(p)) h.push(`${y} ${lgN}打擊王`);
+        }
+        if(st.PA >= 300 && st.HR >= th.hr[0]) {
+            const god = st.HR >= th.hr[1];
+            const p = god ? 100 : clamp(25 + (st.HR - th.hr[0]) * 5, 25, 95);
+            if(chance(p)) h.push(`${y} ${lgN}全壘打王`);
+        }
+        if(st.PA >= 300 && st.SB >= 25) { 
+            const god = st.SB >= 45;
+            const p = god ? 100 : clamp(25 + (st.SB - 25) * 4, 25, 95);
+            if(chance(p)) h.push(`${y} ${lgN}盜壘王`);
+        }
+        if(st.PA >= 300 && st.RBI >= th.rbi[0]) {
+            const god = st.RBI >= th.rbi[1];
+            const p = god ? 100 : clamp(25 + (st.RBI - th.rbi[0]) * 2, 25, 95);
+            if(chance(p)) h.push(`${y} ${lgN}打點王`);
+        }
+        const obp = st.PA > 0 ? (st.H + st.BB) / st.PA : 0;
+        if(st.PA >= 350 && obp >= th.obp[0]) {
+            const god = obp >= th.obp[1];
+            const p = god ? 100 : clamp(25 + Math.floor((obp - th.obp[0]) / 0.005) * 5, 25, 95);
+            if(chance(p)) h.push(`${y} ${lgN}上壘王`);
+        }
+        const def1 = st.DEF || 0;
+        if(S.dpos !== 'DH' && S.seasonFactor >= 0.7) {
+            if(def1 >= 6) {
+                const pGlove = clamp(38 + (def1 - 6) * 5, 38, 95);
+                if(chance(pGlove)) h.push(`${y} ${lgN}金手套`);
+            }
+            if(def1 >= 11) {
+                const pDef = clamp(30 + (def1 - 11) * 6, 30, 95);
+                if(chance(pDef)) h.push(`${y} ${lgN}守備王`);
+            }
+        }
+    }
+
+    const mvpQual = S.pos === 'P' ? (isSP() ? st.IP >= 120 : st.G >= 45) : st.PA >= LV[S.lv].g * 3.4;
+
+    if(st.d >= 6 && mvpQual && S.seasonFactor >= 0.9) {
+        const god = st.d >= 15;
+        const baseMult = (S.pos === 'P' && S.role !== 'SP') ? 5 : 12; 
+        const pMVP = god ? 100 : clamp(baseMult + (st.d - 6) * 11, baseMult, 95);
+        if(chance(pMVP)) h.push(`${y} ${lgN}年度MVP`);
+    }
+
+    const added = h.filter(x => x.startsWith(String(y)));
+    if(added.length) { 
+        card('gold', '年度獎項', added.map(x => x.slice(5)).join('｜'));
+        const topAw = added.find(x => /年度MVP/.test(x)) || added.find(x => /最佳投手|王/.test(x)) || added.find(x => /新人王/.test(x)) || added[0];
+        tlNote(3, topAw.slice(5));
+        if(S.traits.yips) { removeTrait('yips', '失憶症'); card('good', '走出陰影', '站上大舞台拿下獎項的那一刻，腦海裡的雜音消失了——<b class="hl">失憶症痊癒</b>。'); }
+        if(S.traits.glass && !S.traits.phoenix) { 
+            const big = added.some(x => /MVP|最佳投手|打擊王|全壘打王|新人王/.test(x));
+            if(big) { 
+                S.traits.phoenix = true; removeTrait('glass', '玻璃人');
+                S.pool += 8;
+                card('gold', '隱藏屬性解鎖：浴火重生', '那些殺不死你的，真的讓你更強大了。撕裂的韌帶長成更堅韌的形狀——<b class="hl">玻璃人懲罰解除，受傷率恢復正常，並獲得一大筆能力點</b>。'); 
+            } 
+        }
+    }
+}
+
+function maybeIntl(done) {
+    const wbc = (S.year - 2026) % 4 === 0; let p12 = (S.year - 2028) % 4 === 0;
+    if(S.lv === 'MLB') p12 = false; 
+    if(S.stage !== 'PRO' || (!wbc && !p12) || ovr() < 52 || S.seasonFactor < 0.5 || S.rehab > 0 || S.skipMid) { done(); return; }
+    
+    const name = wbc ? '世界棒球經典賽' : '世界12強賽';
+    let forced = false, first = false;
+    if(S.intlLock === null) { S.intlLock = S.year; forced = true; first = true; }
+    else if(S.year - S.intlLock < 5) forced = true;
+    
+    if(forced) {
+        card('info', '體育署公文', first ? `「查 台端符合國家代表隊遴選資格，依規定<b class="hl">強制徵召</b>，並自即日起<b class="hl">列管五年</b>。」` : `列管期間（剩 ${5 - (S.year - S.intlLock)} 年），依規定<b class="hl">強制徵召</b>。你沒有選擇。`);
+    }
+    
+    const opts = [
+        {t: forced ? '⋯⋯只能報到（強制徵召）' : '披上國家隊戰袍', main:true, s:'依成績獲得能力點｜下季受傷機率 +10%', f:()=>{
+            const b = clamp(Math.round((ovr() - 52) * 0.35), 0, 8), r = R() * 100 + b;
+            const i = r >= 96 ? 0 : r >= 88 ? 1 : r >= 79 ? 2 : r >= 46 ? 3 : 4;
+            const rk = ['冠軍','亞軍','季軍','複賽止步','預賽出局'][i], pts = [6, 5, 4, 2, 1][i];
+            let gpts = pts; if(S.traits.intlace) gpts = Math.max(pts, 2);
+            S.pool += gpts; S.injNext = S.traits.intlace ? 0 : 10; S.intlCount++;
+            
+            if(!S.traits.taiwan && S.intlCount > 5) { 
+                S.traits.taiwan = true;
+                card('gold', '隱藏稱號：Team Taiwan', `永遠把國家榮耀放在比職涯更高的位子，你是球迷心中的驕傲。`); board(1); 
+            }
+            
+            { 
+                const a = S.ab, par = 52; const IS = S.intlStat;
+                if(S.pos === 'P') { 
+                    const dd = (a.vel + a.ctl + a.brk) / 3 - par;
+                    let g, ip;
+                    if(isSP()) { g = ri(1, 2); ip = +(g * (4.5 + R() * 2.5)).toFixed(1); } 
+                    else { g = ri(3, 6); ip = +(g * (0.8 + R() * 0.8)).toFixed(1); }
+                    
+                    IS.IP = +(IS.IP + ip).toFixed(1); IS.G += g;
+                    const k9 = clamp(7.5 + dd * 0.12, 4, 14); IS.SO += Math.round(ip / 9 * k9);
+                    const era = clamp(3.6 - dd * 0.16, 0.8, 8); IS.ER += Math.round(era * ip / 9);
+                    if(i <= 2 && chance(45)) IS.W++; if(!isSP() && chance(30)) IS.SV++;
+                } else { 
+                    const dd = (a.con * 0.5 + a.pow * 0.2 + a.eye * 0.18 + a.spd * 0.12) - par - 0.5; 
+                    const g = ri(5, 8), pa = g * ri(3, 4); IS.G += g; IS.PA += pa;
+                    const ab = Math.round(pa * 0.86); IS.AB += ab;
+                    const avg = clamp(0.270 + dd * 0.006, 0.15, 0.5); const h = Math.round(ab * avg); IS.H += h;
+                    const hr = Math.round(h * clamp(0.06 + Math.max(0, a.pow - par) * 0.006, 0.03, 0.28)); IS.HR += hr;
+                    IS.RBI += Math.round(hr * 2.1 + h * 0.35);
+                }
+            }
+            
+            if(i <= 1) S.intlTop4 = (S.intlTop4 || 0) + 1; 
+            if(!S.traits.intlace && S.intlCount >= 3 && (S.intlTop4 || 0) >= 2) { 
+                S.traits.intlace = true;
+                card('gold', '隱藏屬性解鎖：國際賽之鬼', '只要穿上 CT 球衣，你是為大場面而生的男人。<b class="hl">國際賽不再增加受傷風險，且每次徵召能力點保底 +2</b>。'); 
+            }
+            if(i <= 2) S.honors.push(`${S.year} ${name}${rk}`);
+            if(i === 0) tlNote(3, (wbc ? '經典賽' : '12強') + '冠軍');
+            
+            let ex = ''; const mp = S.traits.clutch ? 2 : 1; 
+            if((i === 0 && chance(30 * mp)) || (i === 1 && chance(8 * mp))) { S.honors.push(`${S.year} ${name}MVP`); ex = '你被選為<b class="hl">賽會MVP</b>！'; }
+            
+            card(i <= 1 ? 'gold' : 'info', name, `中華隊最終成績：<b class="hl">${rk}</b>。${ex}獲得能力點 <b class="hl">${gpts}</b> 點。${S.traits.intlace ? '國家英雄不知何謂疲憊。' : '國際賽的高強度消耗，讓下季受傷風險上升。'}`);
+            done(); 
+        }}
+    ];
+    
+    if(!forced) opts.push({t:'以調整為由婉拒', s:'列管期已過，終於能說不', f:done});
+    choose(`中華隊徵召 · ${name}`, opts);
 }

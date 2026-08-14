@@ -2,6 +2,10 @@
 let SEED = new URLSearchParams(location.search).get('seed') || Math.random().toString(36).slice(2,10);
 let _s = 0;
 
+// 全域狀態與主迴圈佇列
+let S = null;
+let stepQ = []; 
+
 function seedInit(str) { 
     _s = 1779033703; 
     for(let i = 0; i < str.length; i++) { 
@@ -28,8 +32,6 @@ const fmtMoney = w => {
     const y = Math.floor(w / 10000), m = Math.round(w % 10000); 
     return (y ? y + '億' : '') + (m ? m.toLocaleString() + '萬' : (y ? '' : '0萬')); 
 };
-
-let S = null;
 
 function blankStat() {
     return {yr:0, G:0, PA:0, AB:0, H:0, HR:0, RBI:0, SB:0, BB:0, W:0, L:0, SV:0, HLD:0, IP:0, SO:0, ER:0, AS:0, DEF:0, WAR:0};
